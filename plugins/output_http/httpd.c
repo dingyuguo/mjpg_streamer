@@ -1452,19 +1452,28 @@ void send_Check_Error_JSON(int fd)
             "Content-type: %s\r\n" \
             STD_HEADER \
             "\r\n", "application/x-javascript");
-
-    DBG("Serving the check_error  JSON file\n");
-	
-	pthread_mutex_lock(&check_status_mutex);
-	check_status = check_status_global;
-	pthread_mutex_unlock(&check_status_mutex);
-
-    sprintf(buffer + strlen(buffer),CHECK_MESSAGE_JSON,(check_status==Normal_status?Normal_str:Error_str));
-
-    /* first transmit HTTP-header, afterwards transmit content of file */
-    if(write(fd, buffer, strlen(buffer)) < 0) {
-        DBG("unable to serve the program JSON file\n");
+	/*send http header*/	
+	if(write(fd, buffer, strlen(buffer)) < 0) {
+        DBG("unable to serve the http header\n");
     }
+	
+	memset(buffer,0,sizeof(buffer));
+	DBG("Serving the check_error  JSON file\n");
+	/*send json data all the time*/
+	while(!pglobal->stop)
+	{
+		pthread_mutex_lock(&check_status_mutex);
+		check_status = check_status_global;
+		pthread_mutex_unlock(&check_status_mutex);
+		
+		sprintf(buffer,CHECK_MESSAGE_JSON,(check_status==Normal_status?Normal_str:Error_str));
+
+		/*transmit content of file */
+		if(write(fd, buffer, strlen(buffer)) < 0) {
+			DBG("unable to serve the program JSON file\n");
+		}
+		usleep(10000);/* sleep 10ms */
+	}
 }
 
 /******************************************************************************
